@@ -38,7 +38,7 @@ function banipay_init_gateway_class() {
  		public function __construct() {            
  
             $this->id = 'banipay'; // payment gateway plugin ID
-            $this->icon = 'https://banipay.me/assets/img/banipay.png'; // URL of the icon that will be displayed on checkout page near your gateway name
+            $this->icon = 'https://banipay.s3.us-east-2.amazonaws.com/FondoTransparente.png'; // URL of the icon that will be displayed on checkout page near your gateway name
             $this->has_fields = false; // in case you need a custom credit card form
             $this->method_title = 'BaniPay Gateway';
             $this->method_description = 'BaniPay payment gateway'; // will be displayed on the options page
@@ -95,12 +95,6 @@ function banipay_init_gateway_class() {
                     'type'        => 'textarea',
                     'description' => 'This controls the description which the user sees during checkout.',
                     'default'     => 'BaniPay allows you to collect your products or services through the internet. Boost your business simply, quickly and safely, with or without a website',
-                ),
-                'url_logo_banipay' => array(
-                    'title'       => 'Logo BaniPay',
-                    'type'        => 'text',
-                    'default'     => 'https://banipay.me/assets/img/banipay.png',
-                    'desc_tip'    => true,
                 ),
                 'affiliate_code'  => array(
                     'title'       => 'Affiliate Code',
@@ -163,7 +157,7 @@ function banipay_init_gateway_class() {
             
             echo '<div class="form-row form-row-wide"><label>Pay with: </label>
                     <div class="text-center">
-                        <img style="width: 60%;" src=" '. $this->get_option('url_logo_banipay') .'" />
+                        <img title="'. $this->method_title .'" style="width: 60%;" src=" '. $this->icon .'" />
                     </div>
                 </div>                    
                 <div class="clear"></div>';
