@@ -1,11 +1,11 @@
 <?php
 /*
  * Plugin Name: Woocommerce BaniPay Payment Gateway
- * Plugin URI: https://vulcan.com
+ * Plugin URI: https://banipay.me/
  * Description: Plugin Woocommerce BaniPay
  * Author: Vulcan
- * Author URI: https://vulcan.com
- * Version: 1.0.2
+ * Author URI: https://banipay.me/
+ * Version: 1.1.0
 
 
 /*
@@ -66,7 +66,7 @@ function banipay_init_gateway_class() {
             add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
         
             // We need custom JavaScript to obtain a token
-            // add_action( 'wp_enqueue_scripts', array( $this, 'payment_scripts' ) );
+            add_action( 'wp_enqueue_scripts', array( $this, 'payment_scripts' ) );
          
  		}
  
@@ -120,6 +120,12 @@ function banipay_init_gateway_class() {
                     'default'        => get_site_url().'/notification',
                     'description' => 'Example Notification URL: '.get_site_url().'/notification'
                 ),
+                'billing' => array(
+                    'title'       => 'Facturación',
+                    'label'       => 'Habilitar Captura de NIT y Razón Social',
+                    'type'        => 'checkbox',
+                    'default'     => 'no'
+                ),
                 'logs' => array(
                     'title'       => 'Logs',
                     'label'       => 'Enable Logs',
@@ -151,16 +157,36 @@ function banipay_init_gateway_class() {
             }
         
             // see banipay payment method
-            echo '<fieldset id="wc-' . esc_attr( $this->id ) . '-cc-form" class="wc-banipay wc-payment-form" style="background:transparent;">';
+            echo '<fieldset id="wc-' . esc_attr( $this->id ) . '-cc-form" class="wc-banipay wc-payment-form fieldset-custom">';
 
             do_action( 'woocommerce_credit_card_form_start', $this->id );
-            
-            echo '<div class="form-row form-row-wide"><label>Pay with: </label>
+
+            if ($this->get_option( 'billing' ) == 'yes') {
+                echo '
+                    <div class="form-row">
+                        <label>Con factura: <input id="billing" name="billing" type="checkbox" autocomplete="off" onclick="withBilling(this)"></label>
+                        
+                    </div>
+                    <div id="form-billing" class="animate bform-hide">
+                        <div class="form-row">
+                            <label>Nombre o Razón Social: <span class="required">*</span></label>
+                            <input id="socialreason" name="nameOrSocialReason" type="text" autocomplete="off" placeholder="">
+                        </div>
+                        <div class="form-row">
+                            <label>NIT: <span class="required">*</span></label>
+                            <input id="nit" name="nit" type="number" autocomplete="off" placeholder="">
+                        </div>
+                    </div>
+                ';
+            }
+            echo '
+                <div class="form-row form-row-wide"><label>Pagar con: </label>
                     <div class="text-center">
-                        <img title="'. $this->method_title .'" style="width: 60%;" src=" '. $this->icon .'" />
+                        <img title="'. $this->method_title .'" class="banipay-logo" src=" '. $this->icon .'" />
                     </div>
                 </div>                    
-                <div class="clear"></div>';
+                <div class="clear"></div>
+            ';
         
             do_action( 'woocommerce_credit_card_form_end', $this->id );
         
@@ -169,15 +195,34 @@ function banipay_init_gateway_class() {
         }
         
 
-	 	public function payment_scripts() {
+        public function payment_scripts() {
              
-            wp_register_script( 'woocommerce_banipay', plugins_url( '/banipay-gateway/banipay.js' ) );
+            wp_register_style( 'woocommerce_banipay', plugins_url( 'banipay-gateway/assets/css/banipay.css', dirname( __FILE__ ) ) );
+            wp_enqueue_style( 'woocommerce_banipay' );
+
+            wp_register_script( 'woocommerce_banipay', plugins_url( 'banipay-gateway/assets/js/banipay.js', dirname( __FILE__ ) ) );
             wp_enqueue_script( 'woocommerce_banipay' );
         }
         
         
 		public function validate_fields() {
+
+            if( (isset($_POST['billing'])) && $_POST['billing'] == 'on' ) {
+
+                if( empty( $_POST['nameOrSocialReason']) ) {
+                    wc_add_notice(  'Debe ingresar un Nombre o Razón Social', 'error' );
+                    return false;
+                }
+
+                if( empty( $_POST['nit']) ) {
+                    wc_add_notice(  'Debe ingresar un NIT', 'error' );
+                    return false;
+                }
+
+            }
+
             return true;
+
         }
 
         public function get_return_url( $order = null ) {
@@ -199,9 +244,10 @@ function banipay_init_gateway_class() {
 		public function process_payment( $order_id ) {
             
             global $woocommerce;
-
+            
             // Current order
             $order = wc_get_order( $order_id );
+            
             $return_url = $this->get_return_url( $order );
             wc_setcookie('order_id', $order_id);
             $items = $woocommerce->cart->get_cart();
@@ -219,10 +265,25 @@ function banipay_init_gateway_class() {
             
             // Products services to register
             $data = array(
+                // "withInvoice"        => ( ($this->get_option( 'billing' ) == 'yes') && ($_POST['billing'] == 'on') ) ? true : false,
                 "withInvoice"        => false,
                 "externalCode"       => $_COOKIE["woocommerce_cart_hash"],
                 "paymentDescription" =>  get_bloginfo('name'),
-                // "reserved1"          => "string_1",
+                
+                "address"            => $order->get_billing_address_1(), 
+                "administrativeArea" => $order->get_billing_state(), 
+                "country"            => $order->get_billing_country(), 
+                "firstName"          => $order->get_billing_first_name(), 
+                "identifierCode"     => $order_id, 
+                "identifierName"     => $order->get_billing_first_name(), 
+                "lastName"           => $order->get_billing_last_name(), 
+                "locality"           => $order->get_billing_city(), 
+                // "nit"                => ( ($this->get_option( 'billing' ) == 'yes') && isset($_POST['billing']) && ($_POST['billing'] == 'on') ) ? sanitize_text_field($_POST['nit']) : '', 
+                "nit"                =>  $this->checkBilling( $_POST['billing'], $_POST['nit']), 
+                "nameOrSocialReason" =>  $this->checkBilling( $_POST['billing'], $_POST['nameOrSocialReason']),  
+                "phoneNumber"        => $order->get_billing_phone(), 
+                "postalCode"         => $order->get_billing_postcode(),
+                
                 "details"            => $this->details
             );
 
@@ -231,7 +292,6 @@ function banipay_init_gateway_class() {
                 "affiliateCode"   => $this->get_option( 'affiliate_code' ),
                 "expireMinutes"   => $this->get_option( 'expire_minutes' ),
                 "failedUrl"       => $this->get_option( 'failed_url' ),
-                // "successUrl"      => "https://diebian.dev/",
                 "successUrl"      =>  $return_url,
                 "notificationUrl" => $this->get_option( 'notification_url' )
             );
@@ -263,7 +323,7 @@ function banipay_init_gateway_class() {
 
                 // Registration a transaction
                 $transaction = $temp->register($data, $params);
-                $this->logs("Transaction", $transaction);                
+                $this->logs("Transaction", $transaction); 
 
                 if( isset($transaction) && !isset($transaction->status) ){
 
@@ -273,6 +333,7 @@ function banipay_init_gateway_class() {
                     wc_setcookie('payment_id', $transaction->paymentId);
                     
                     $this->emptyCart($woocommerce);
+
                     // redirect to banipay url transaction
                     return array(
                         'result' => 'success',
@@ -299,8 +360,8 @@ function banipay_init_gateway_class() {
          
             if( !is_wp_error( $response ) ) {
                                 
-                //if ( (isset($response->paymentStatus) && $response->paymentStatus == 'PROCESSED') || (isset($response->paymentStatus) && $response->paymentStatus == 'PROCESSING') ) {
-                if ( isset($response->paymentStatus) ) {
+                if ( (isset($response->paymentStatus) && $response->paymentStatus == 'PROCESSED') || (isset($response->paymentStatus) && $response->paymentStatus == 'PROCESSING') ) {
+                // if ( isset($response->paymentStatus) ) {
                     
                     $this->logs("Transaction response", $response);
              
@@ -319,7 +380,7 @@ function banipay_init_gateway_class() {
                 }
          
             } else {
-                wc_add_notice(  'Error en la transacción.', 'error' );
+                wc_add_notice( 'Error en la transacción.', 'error' );
                 return;
             }
 
@@ -327,6 +388,13 @@ function banipay_init_gateway_class() {
 
         function emptyCart($woocommerce) {
             $woocommerce->cart->empty_cart();
+        }
+
+        function checkBilling($billing, $data) {
+            if ( ($this->get_option( 'billing' ) == 'yes') && isset($billing) && ($billing == 'on') ) {
+                return sanitize_text_field($data);
+            }
+            return '';
         }
 
         function logs($detail = null, $data = null) {
