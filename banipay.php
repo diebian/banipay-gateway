@@ -10,9 +10,11 @@
 
         private $transactionGenerated = array();
         private $transactionStatus = array();
+        private $affiliate = array();
 
         private $urlTransaction = "https://banipay.me:8443/api/payments/transaction";
         private $urlTransactionInfo = "https://banipay.me:8443/api/payments/info";
+        private $urlAffiliate = "https://banipay.me:8443/api/affiliates";
 
 
         // array keys required
@@ -38,7 +40,7 @@
                 "expireMinutes"   => $params['expireMinutes'],
                 "failedUrl"       => $params['failedUrl'],
                 "successUrl"      => $params['successUrl'],
-                "notificationUrl" => $params['notificationUrl']
+                // "notificationUrl" => $params['notificationUrl']
             );
             if( self::verify() ) {
                 $data = self::toComplete();
@@ -99,12 +101,28 @@
 
             // Execute the POST request
             $this->transactionStatus = json_decode(curl_exec($ch));
-            // error_log(print_r($this->transactionStatus, true));
 
             // Close cURL resource
             curl_close($ch);
 
             return $this->transactionStatus;
+        }
+
+        public function getAffiliate ($affiliateCode) {
+
+            $ch = curl_init("{$this->urlAffiliate}/{$affiliateCode}");
+
+            // Return response instead of outputting
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+            // Execute the POST request
+            $this->affiliate = json_decode(curl_exec($ch));
+
+            // Close cURL resource
+            curl_close($ch);
+
+            return $this->affiliate;
+
         }
 
     }

@@ -5,7 +5,7 @@
  * Description: Plugin Woocommerce BaniPay
  * Author: Vulcan
  * Author URI: https://banipay.me/
- * Version: 1.1.0
+ * Version: 1.2.0
 
 
 /*
@@ -42,6 +42,7 @@ function banipay_init_gateway_class() {
             $this->has_fields = false; // in case you need a custom credit card form
             $this->method_title = 'BaniPay Gateway';
             $this->method_description = 'BaniPay payment gateway'; // will be displayed on the options page
+            $this->affiliate_code_demo = '141581ae-fb1f-4cfb-b21e-040a8851c265';
 
             $this->supports = array(
                 'products'
@@ -98,9 +99,9 @@ function banipay_init_gateway_class() {
                 ),
                 'affiliate_code'  => array(
                     'title'       => 'Affiliate Code',
-                    'default'     => '141581ae-fb1f-4cfb-b21e-040a8851c265',
+                    'default'     => $this->affiliate_code_demo,
                     'type'        => 'text',
-                    'description' => 'Example Code (test): 141581ae-fb1f-4cfb-b21e-040a8851c265',
+                    'description' => 'Example Code (test): '.$this->affiliate_code_demo,
                 ),
                 'expire_minutes' => array(
                     'title'       => 'Expire Minutes',
@@ -114,12 +115,14 @@ function banipay_init_gateway_class() {
                     'default'        => get_site_url().'/error',
                     'description' => 'Example Notification URL: '.get_site_url().'/error'
                 ),
+                /*
                 'notification_url' => array(
                     'title'       => 'Notification URL',
                     'type'        => 'text',
                     'default'        => get_site_url().'/notification',
                     'description' => 'Example Notification URL: '.get_site_url().'/notification'
                 ),
+                */
                 'billing' => array(
                     'title'       => 'Facturación',
                     'label'       => 'Habilitar Captura de NIT y Razón Social',
@@ -265,7 +268,6 @@ function banipay_init_gateway_class() {
             
             // Products services to register
             $data = array(
-                // "withInvoice"        => ( ($this->get_option( 'billing' ) == 'yes') && ($_POST['billing'] == 'on') ) ? true : false,
                 "withInvoice"        => false,
                 "externalCode"       => $_COOKIE["woocommerce_cart_hash"],
                 "paymentDescription" =>  get_bloginfo('name'),
@@ -278,9 +280,9 @@ function banipay_init_gateway_class() {
                 "identifierName"     => $order->get_billing_first_name(), 
                 "lastName"           => $order->get_billing_last_name(), 
                 "locality"           => $order->get_billing_city(), 
-                // "nit"                => ( ($this->get_option( 'billing' ) == 'yes') && isset($_POST['billing']) && ($_POST['billing'] == 'on') ) ? sanitize_text_field($_POST['nit']) : '', 
-                "nit"                =>  $this->checkBilling( $_POST['billing'], $_POST['nit']), 
-                "nameOrSocialReason" =>  $this->checkBilling( $_POST['billing'], $_POST['nameOrSocialReason']),  
+                "email"              => $order->get_billing_email(), 
+                "nit"                => $this->checkBilling( isset($_POST['billing']), isset($_POST['nit']) ), 
+                "nameOrSocialReason" => $this->checkBilling( isset($_POST['billing']), isset($_POST['nameOrSocialReason']) ),  
                 "phoneNumber"        => $order->get_billing_phone(), 
                 "postalCode"         => $order->get_billing_postcode(),
                 
@@ -293,7 +295,7 @@ function banipay_init_gateway_class() {
                 "expireMinutes"   => $this->get_option( 'expire_minutes' ),
                 "failedUrl"       => $this->get_option( 'failed_url' ),
                 "successUrl"      =>  $return_url,
-                "notificationUrl" => $this->get_option( 'notification_url' )
+                // "notificationUrl" => $this->get_option( 'notification_url' )
             );
 
             $this->logs("Details", $data);
@@ -320,6 +322,12 @@ function banipay_init_gateway_class() {
                 
                 // Start class Transaction
                 $temp = new Transaction();
+
+                $affiliate = $temp->getAffiliate($this->get_option( 'affiliate_code' ));
+
+                if ( ($this->affiliate_code_demo != $this->get_option( 'affiliate_code' ) ) && isset( $affiliate->withInvoice ) ) {
+                    $data["withInvoice"] = $affiliate->withInvoice;
+                }
 
                 // Registration a transaction
                 $transaction = $temp->register($data, $params);
