@@ -1,10 +1,10 @@
 <?php
 /*
- * Plugin Name: Woocommerce BaniPay Payment Gateway
- * Plugin URI: https://banipay.me/
- * Description: Plugin Woocommerce BaniPay
+ * Plugin Name: BaniPay Payment Gateway
+ * Plugin URI: https://banipay.me/portal/home#pay
+ * Description: BaniPay payment gateway, plugin for Woocommerce
  * Author: Vulcan
- * Author URI: https://banipay.me/
+ * Author URI: https://banipay.me/portal/home
  * Version: 1.2.0
 
 
