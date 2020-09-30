@@ -5,8 +5,7 @@
  * Description: BaniPay payment gateway, plugin for Woocommerce
  * Author: Vulcan
  * Author URI: https://banipay.me/portal/home
- * Version: 1.2.0
-
+ * Version: 1.2.1
 
 /*
  * This action hook registers our PHP class as a Woocommerce payment gateway
@@ -250,6 +249,8 @@ function banipay_init_gateway_class() {
             
             // Current order
             $order = wc_get_order( $order_id );
+
+            $this->add_shipping_method( $woocommerce->cart->get_shipping_total(), $this->get_shipping_name_by_id(WC()->session->get( 'chosen_shipping_methods' )[0]) );
             
             $return_url = $this->get_return_url( $order );
             wc_setcookie('order_id', $order_id);
@@ -301,6 +302,8 @@ function banipay_init_gateway_class() {
             $this->logs("Details", $data);
             $this->logs("URL Return", $return_url);
             $this->logs("Params", $params);
+
+            // return;
 
             // Current cart hash
             $hash = wp_hash(print_r($data, true).$order);
@@ -409,6 +412,35 @@ function banipay_init_gateway_class() {
             if($this->get_option( 'logs' ) == 'yes') {
                 error_log( "{$detail} : ". print_r($data, true) );
             }
+        }
+
+        function get_shipping_name_by_id( $shipping_id ) {
+            $packages = WC()->shipping->get_packages();
+        
+            foreach ( $packages as $i => $package ) {
+                if ( isset( $package['rates'] ) && isset( $package['rates'][ $shipping_id ] ) ) {
+                    $rate = $package['rates'][ $shipping_id ];
+                    /* @var $rate WC_Shipping_Rate */
+                    return $rate->get_label();
+                }
+            }
+
+            return '';
+        }
+
+        function add_shipping_method( $shipping_total, $shipping_name) {
+
+            if ($shipping_total > 0) {
+                $data = array(
+                    "concept"         => $shipping_name,
+                    "productImageUrl" => $this->icon,
+                    "quantity"        => 1,
+                    "unitPrice"       => $shipping_total,
+                );
+                array_push($this->details, $data);   
+            }
+            return;
+
         }
  	}
 }
