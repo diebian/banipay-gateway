@@ -1,4 +1,4 @@
-=== BaniPay Payment Gateway ===
+=== Payment Gateway for BaniPay ===
 
 Contributors: BaniPay
 Tags: payment, gateway, banipay, payments, wallet
